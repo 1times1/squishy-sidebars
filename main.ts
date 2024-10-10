@@ -1,5 +1,7 @@
 import { WorkspaceLeaf, Plugin, ItemView } from 'obsidian';
 
+const VIEW_TYPES = ['file-explorer', 'search', 'tag']
+
 export default class Squishy extends Plugin {
 	
 	async onload() {
@@ -9,10 +11,14 @@ export default class Squishy extends Plugin {
 		//@ts-ignore
 		this.app.workspace.getSideLeaf = (a: any, b: any) => { //if obsidian tries to open a side leaf, force it to the center
 			let l = this.app.workspace.getLeaf("tab");
-			patch(l);
+			
 			if (!finished) { //if not finished...
 				leafarray.push(l); //add the leaf into the array
 				//so any side leaves obsidian tries to open before workspacelayout ready will be in the array
+			} else {
+				if (VIEW_TYPES.contains(l.view.getViewType())) { //skip views that I don't need to patch
+					patch(l);
+				}
 			}
 			return l;
 		};
@@ -31,10 +37,8 @@ export default class Squishy extends Plugin {
 			//debug code - if you want to see the view type strings just check workspace.json
 			//this.app.workspace.iterateAllLeaves((l) => console.log(l.view.getViewType()))
 
-			let leavesIMust = this.app.workspace.getLeavesOfType("file-explorer");
-			leavesIMust.push(...this.app.workspace.getLeavesOfType("search"));
-			leavesIMust.push(...this.app.workspace.getLeavesOfType("tag"));
-
+			let leavesIMust: WorkspaceLeaf[] = [];
+			VIEW_TYPES.forEach((value) => leavesIMust.push(...this.app.workspace.getLeavesOfType(value)));
 			leavesIMust.forEach((v) => patch(v));
 
 			leafarray.forEach((l) => l.detach()) //detach all the leaves in the array

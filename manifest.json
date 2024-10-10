@@ -1,7 +1,7 @@
 {
 	"id": "squishy-sidebars",
 	"name": "Squishy Sidebars",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"minAppVersion": "1.6.7",
 	"description": "Makes the sidebar-only core plugins (file explorer, tags, search) moveable and closeable.",
 	"author": "nwlf",
