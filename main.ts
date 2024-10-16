@@ -1,6 +1,13 @@
 import { WorkspaceLeaf, Plugin, ItemView, Side, Notice, TAbstractFile, View } from 'obsidian';
 
-const VIEW_TYPES = ['file-explorer', 'search', 'tag']
+const PLUGINS = new Map(
+	[
+	['file-explorer', 'file-explorer'],
+	['search', 'global-search'], 
+	['tag', 'tag-pane']
+	])
+
+const VIEW_TYPES: string[] = ['file-explorer', 'search', 'tag'];
 
 let leafarray: WorkspaceLeaf[] = [];
 let leafmap: Map<string, View> = new Map();
@@ -17,6 +24,7 @@ export default class Squishy extends Plugin {
 		this.app.workspace.getSideLeaf = (a: any, b: any) => { //
 			let l = this.app.workspace.getLeaf("tab");
 			
+
 			if (!finished) { //if not finished...
 				leafarray.push(l); //add the leaf into the array
 				//so any side leaves obsidian tries to open before workspacelayout ready will be in the array
@@ -39,6 +47,7 @@ export default class Squishy extends Plugin {
 			  /* let leaf = leafmap.get(e);
 			  leaf ? i = leaf : i.setViewState({ type: e, ...n }); */
 			  i.setViewState({ type: e, ...n });
+			  //i.view.load = () => {};
 			} else {
 			  i = c[0];
 			  if (n.active || n.reveal) {
@@ -50,8 +59,8 @@ export default class Squishy extends Plugin {
 
 		//file explorer Instance
 		//@ts-ignore
-		const feInstance = this.app.internalPlugins.getPluginById("file-explorer").instance;
-		Object.getPrototypeOf(feInstance).revealInFolder = newRIF.bind(feInstance);
+		const feInstance = this.app.internalPlugins.getEnabledPluginById("file-explorer")?.instance;
+		feInstance ? Object.getPrototypeOf(feInstance).revealInFolder = newRIF.bind(feInstance) : null;
 
 		//new revealInFolder
 		function newRIF(e: TAbstractFile) {
@@ -80,8 +89,8 @@ export default class Squishy extends Plugin {
 
 		//debug command
 		this.addCommand({
-				id: "help",
-				name: "help",
+				id: "debug",
+				name: "Debug command",
 				callback: () => 
 					{this.app.workspace.iterateAllLeaves((leaf) => console.log(leaf))
 						console.log(leafmap);
@@ -105,7 +114,18 @@ export default class Squishy extends Plugin {
 					}
 				
 			});
-			if (leafmap.size !== VIEW_TYPES.length) {
+
+			let notice = false;
+			for (let [key, value] of PLUGINS) {
+				//@ts-ignore
+				if (this.app.internalPlugins.getEnabledPluginById(value) && leafmap.get(key)) {
+					
+				} else {
+					notice = true;
+				}
+			}
+
+			if (notice) {
 				new Notice(PREFIX + "something went wrong. This usually goes away if you reload Obsidian.")
 			}
 			leafmap.forEach((value) => patch(value));
@@ -135,15 +155,16 @@ class WowView extends ItemView { //implemented version of itemview used to make 
 		this.containerEl.remove();
 	}
 	
-	open(e: any){ //this does NOT get called when first loading!!!
+	/* open(e: any){ //this does NOT get called when first loading!!!
+		//handles things when leaf init is already done
 		let viewType = this.getViewType()
 		let t = leafmap.get(viewType);
 		if (t) { //if already loaded
 			let alr = this.app.workspace.getLeavesOfType(viewType);
-			if (alr.length === 0) {
+			if (alr.length === 1) { // the 'this' leaf has the viewtype already
 				e.appendChild(t.containerEl);
 			} else {
-				this.leaf.detach();
+				//this.leaf.detach();
 				new Notice(PREFIX + "no thanks!")
 			}
 		
@@ -152,6 +173,10 @@ class WowView extends ItemView { //implemented version of itemview used to make 
 		} else {
 			throw new Error("should not be loading!!");
 		}
+	} */
+
+	onUnload() {
+		this.containerEl.remove();
 	}
 
 	getViewType(): string {
@@ -168,5 +193,5 @@ class WowView extends ItemView { //implemented version of itemview used to make 
 function patch(l: View) {
 	Object.getPrototypeOf(l.leaf).canClose = () => true;
 	Object.setPrototypeOf(Object.getPrototypeOf(l), new WowView(l.leaf));
-
+	
 }
