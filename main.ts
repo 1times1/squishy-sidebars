@@ -1,14 +1,9 @@
-import { WorkspaceLeaf, Plugin, ItemView, Side, Notice, TAbstractFile, View } from 'obsidian';
+import { WorkspaceLeaf, Plugin, ItemView, Side, Notice, TAbstractFile, View, CorePlugin } from 'obsidian';
 
-const PLUGINS = new Map(
-	[
-	['file-explorer', 'file-explorer'],
-	['search', 'global-search'], 
-	['tag', 'tag-pane']
-	])
+const plugins = new Map<string, CorePlugin>();
 
 const VIEW_TYPES: string[] = ['file-explorer', 'search', 'tag'];
-
+const PLUGIN_IDS: string[] = ['file-explorer', 'global-search', 'tag-pane']
 let leafarray: WorkspaceLeaf[] = [];
 let leafmap: Map<string, View> = new Map();
 
@@ -23,16 +18,8 @@ export default class Squishy extends Plugin {
 		//re-assigning it so if obsidian tries to get a side leaf, it gets a centre leaf instead
 		this.app.workspace.getSideLeaf = (a: any, b: any) => { //
 			let l = this.app.workspace.getLeaf("tab");
-			
-
-			if (!finished) { //if not finished...
-				leafarray.push(l); //add the leaf into the array
-				//so any side leaves obsidian tries to open before workspacelayout ready will be in the array
-			}/*  else {
-				if (VIEW_TYPES.contains(l.view.getViewType())) { //skip views that I don't need to patch
-					patch(l);
-				}
-			} */
+			if (!finished)
+				leafarray.push(l);
 			return l;
 		};
 
@@ -57,10 +44,46 @@ export default class Squishy extends Plugin {
 			}
 		  };
 
+		VIEW_TYPES.forEach((v, i) => plugins.set(v, this.app.internalPlugins.plugins[PLUGIN_IDS[i]]))
 		//file explorer Instance
 		//@ts-ignore
-		const feInstance = this.app.internalPlugins.getEnabledPluginById("file-explorer")?.instance;
-		feInstance ? Object.getPrototypeOf(feInstance).revealInFolder = newRIF.bind(feInstance) : null;
+
+		for (let [key, value] of plugins) {
+			
+			const origViewFunc = value.views[key].bind(null);
+
+			//i have to declare the function every time because origViewFunc is unique, ugh
+			value.views[key] = function newViewFunc(e: WorkspaceLeaf): View {
+				let newView: View = origViewFunc(e)
+				//only need to patch this once because everything links to this instance of FZ (workspaceLeaf i think)
+				//damn if only i can just make all the file explorer views link to one node tree
+				Object.getPrototypeOf(e).canClose = canClose;
+				//}
+	
+				const p = Object.getPrototypeOf(newView);
+				Object.setPrototypeOf(p, new WowView(e));
+				//newView.leaf = e;
+				
+				return newView;
+			}
+
+			value.instance.initLeaf = blank;
+			
+		}
+		const fePlugin = this.app.internalPlugins.plugins["file-explorer"];
+		//it doesn't matter if they are disabled or not, because each always gets initialised when and only when
+		//obsidian loads.
+
+		const feInstance = fePlugin.instance;
+		Object.getPrototypeOf(feInstance).revealInFolder = newRIF.bind(feInstance)
+		
+		function blank(){};
+		
+		function canClose(){ return true };
+		
+		
+		
+		
 
 		//new revealInFolder
 		function newRIF(e: TAbstractFile) {
@@ -104,7 +127,7 @@ export default class Squishy extends Plugin {
 			//debug code - if you want to see the view type strings just check workspace.json
 			//this.app.workspace.iterateAllLeaves((l) => console.log(l.view.getViewType()))
 
-			let leavesIMust: WorkspaceLeaf[] = []; //leaves I Must patch
+		/* 	let leavesIMust: WorkspaceLeaf[] = []; //leaves I Must patch
 			VIEW_TYPES.forEach((value) => leavesIMust.push(...this.app.workspace.getLeavesOfType(value)));
 			leavesIMust.forEach((l) => {
 					if (leafmap.get(l.view.getViewType())) {
@@ -129,6 +152,7 @@ export default class Squishy extends Plugin {
 				new Notice(PREFIX + "something went wrong. This usually goes away if you reload Obsidian.")
 			}
 			leafmap.forEach((value) => patch(value));
+			*/
 			leafarray.forEach((l,i) => {
 				l.detach();
 				
@@ -191,7 +215,7 @@ class WowView extends ItemView { //implemented version of itemview used to make 
 
 
 function patch(l: View) {
-	Object.getPrototypeOf(l.leaf).canClose = () => true;
-	Object.setPrototypeOf(Object.getPrototypeOf(l), new WowView(l.leaf));
+	/* Object.getPrototypeOf(l.leaf).canClose = () => true;
+	Object.setPrototypeOf(Object.getPrototypeOf(l), new WowView(l.leaf)); */
 	
 }
