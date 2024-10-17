@@ -23,3 +23,4 @@ data.json
 
 #I don't know what a package-lock.json is...
 package-lock.json
+customObsidianTypes.d.ts
