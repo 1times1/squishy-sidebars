@@ -1,9 +1,9 @@
 {
 	"id": "squishy-sidebars",
 	"name": "Squishy Sidebars",
-	"version": "0.2.2",
+	"version": "0.2.4",
 	"minAppVersion": "1.6.7",
-	"description": "Makes the sidebar-only core plugins (file explorer, tags, search) moveable and closeable.",
+	"description": "Makes the sidebar-only core plugins (file explorer, tags, search) moveable and closeable. Tested for Obsidian 1.6.7 and 1.7.4",
 	"author": "nwlf",
 	"isDesktopOnly": true
 }

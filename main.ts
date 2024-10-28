@@ -14,6 +14,8 @@ let leafmap: Map<string, View> = new Map();
 
 const PREFIX = "Squishy Sidebars: "
 
+let finished = false;
+
 export default class Squishy extends Plugin {
 	
 	async onload() {
@@ -45,7 +47,7 @@ export default class Squishy extends Plugin {
 		let i=0;
 		let u=1;
 
-		for (let [key, value] of plugins) {
+		for (let [viewType, value] of plugins) {
 			
 			
 			if (i <3*u) { //if i love you
@@ -55,11 +57,11 @@ export default class Squishy extends Plugin {
 				//anyways the if statement is to only do the below patching for the first three entries in the VIEW_TYPES/PLUGINS arrays 
 				//make sure they're search, bookmarks, and files!!!!!!
 
-				const origViewFunc = value.views[key].bind(null); //i have to declare the function every time because origViewFunc is unique, ugh
+				const origViewFunc = value.views[viewType].bind(null); //i have to declare the function every time because origViewFunc is unique, ugh
 
-				value.views[key] = function newViewFunc(e: WorkspaceLeaf): View {
+				value.views[viewType] = function newViewFunc(e: WorkspaceLeaf): View {
 					let newView: View = origViewFunc(e)
-
+					
 					//only need to patch this once because everything links to this instance of FZ (workspaceLeaf i think)
 					//damn if only i can just make all the file explorer views link to one node tree
 					Object.getPrototypeOf(e).canClose = canClose;
@@ -74,15 +76,22 @@ export default class Squishy extends Plugin {
 			//I think I should stop the leaves from popping up by changing the onWorkspaceLayoutReady, but
 			//then maybe i'll have to patch the individual functions of each plugin.
 			//if you do a Ctrl+F in the source code, every plugin's initLeaf is just a ensureSideLeaf(), so I'm probably not damaging anything crucial
-			value.instance.initLeaf = blank;
-			
+			//Object.getPrototypeOf(value.instance).initLeaf = blank;
+			//value.instance.onUserDisable();
+
+			if (this.app.viewRegistry.viewByType.hasOwnProperty(viewType)) { //re-register the views
+				this.app.viewRegistry.unregisterView(viewType);
+				this.app.viewRegistry.registerView(viewType, value.views[viewType]);
+			}
 		
 		}
 
 		const feInstance = this.app.internalPlugins.plugins["file-explorer"].instance;
 		Object.getPrototypeOf(feInstance).revealInFolder = newRIF.bind(feInstance);
 
-		
+		this.app.workspace.onLayoutReady(() => finished = true);
+		//this.app.vault.fileMap = {};
+
 	}
 
 	onunload() {};
@@ -110,6 +119,9 @@ class WowView extends ItemView { //implemented version of itemview used to make 
 
 //new ensureSideLeaf()
 async function newESL(e: any, t: any, n: any) {
+	if (!finished) {
+		return;
+	}
 	var i;
 	var r = n.active;
 	var o = n.split;
